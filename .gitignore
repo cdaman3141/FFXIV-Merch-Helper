@@ -1,0 +1,13 @@
+.git/
+__pycache__/
+*.pyc
+*.pyo
+.item_cache.json
+lamia_data.json
+lamia_report.txt
+.env
+.DS_Store
+*.log
+.vscode/
+.idea/
+node_modules/
