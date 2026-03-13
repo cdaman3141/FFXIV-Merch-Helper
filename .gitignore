@@ -1,13 +1,8 @@
-.git/
-__pycache__/
-*.pyc
-*.pyo
-.item_cache.json
-lamia_data.json
-lamia_report.txt
-.env
 .DS_Store
 *.log
+.env
 .vscode/
 .idea/
 node_modules/
+.git/
+chathistory

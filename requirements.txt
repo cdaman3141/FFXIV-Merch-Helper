@@ -1,2 +1,4 @@
-flask
-requests
+## Optional CLI dependencies for lamia_price_check.py
+## No third-party packages are required.
+## Python 3.7+ standard library is sufficient.
+

@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FFXIV Lamia Materia Price Checker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #0a0e27;
+            color: #e0e0e0;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        
+        .container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        .main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        
+        .itinerary-sidebar {
+            width: 350px;
+            background: #0f1520;
+            border-left: 2px solid #2a3f52;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .itinerary-header {
+            padding: 20px;
+            border-bottom: 2px solid #2a3f52;
+            background: #1a2332;
+        }
+        
+        .itinerary-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+        }
+        
+        .itinerary-footer {
+            padding: 15px;
+            border-top: 2px solid #2a3f52;
+            background: #1a2332;
+        }
+        
+        header {
+            padding: 20px;
+            border-bottom: 2px solid #2a9d8f;
+            background: #0f1520;
+        }
+        
+        h1 {
+            color: #2a9d8f;
+            margin-bottom: 10px;
+            font-size: 24px;
+        }
+        
+        h2 {
+            color: #2a9d8f;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        
+        h3 {
+            color: #2a9d8f;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        button {
+            padding: 10px 20px;
+            background: #2a9d8f;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        
+        button:hover:not(:disabled) {
+            background: #1f7f70;
+        }
+        
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        
+        button.secondary {
+            background: #555;
+        }
+        
+        button.secondary:hover:not(:disabled) {
+            background: #666;
+        }
+        
+        .status {
+            padding: 10px;
+            background: #1a2332;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            border-left: 3px solid #2a9d8f;
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .status.loading {
+            color: #2a9d8f;
+            border-left-color: #2a9d8f;
+        }
+        
+        .status.error {
+            color: #e74c3c;
+            border-left-color: #e74c3c;
+        }
+        
+        .status.success {
+            color: #27ae60;
+            border-left-color: #27ae60;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #1a2332;
+            border-radius: 2px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: #2a9d8f;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        
+        .items-container {
+            display: grid;
+            gap: 30px;
+        }
+        
+        .item {
+            background: #1a2332;
+            border: 1px solid #2a3f52;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        
+        .item-name {
+            font-weight: 600;
+            font-size: 18px;
+            color: #2a9d8f;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #2a3f52;
+        }
+        
+        .item-sections {
+            display: grid;
+            gap: 20px;
+        }
+        
+        .lamia-section {
+            background: #0f1823;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #e74c3c;
+        }
+        
+        .section-title {
+            font-weight: 600;
+            color: #e74c3c;
+            margin-bottom: 10px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .lamia-listings-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        
+        .lamia-listings-table th,
+        .lamia-listings-table td {
+            padding: 6px 10px;
+            text-align: left;
+        }
+        
+        .lamia-listings-table th {
+            color: #999;
+            font-weight: 500;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #2a3f52;
+        }
+        
+        .lamia-listings-table td {
+            border-bottom: 1px solid #1a2332;
+        }
+        
+        .lamia-listings-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .other-worlds-section {
+            background: #0f1823;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #2a9d8f;
+        }
+        
+        .worlds-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        
+        .worlds-table th {
+            padding: 8px 12px;
+            text-align: left;
+            color: #999;
+            font-weight: 500;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #2a3f52;
+        }
+        
+        .worlds-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #1a2332;
+        }
+        
+        .worlds-table tbody tr {
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        
+        .worlds-table tbody tr:hover {
+            background: #1a2332;
+        }
+        
+        .worlds-table tbody tr.selected {
+            background: #1f3d38;
+            border-left: 3px solid #2a9d8f;
+        }
+        
+        .worlds-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .world-name-col {
+            color: #2a9d8f;
+            font-weight: 500;
+        }
+        
+        .price-col {
+            color: #f39c12;
+            font-weight: 500;
+            text-align: right;
+        }
+        
+        .qty-col {
+            color: #ccc;
+            text-align: right;
+        }
+        
+        .itinerary-item {
+            background: #1a2332;
+            border: 1px solid #2a3f52;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+        
+        .itinerary-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .itinerary-item-name {
+            font-weight: 600;
+            color: #2a9d8f;
+            font-size: 13px;
+        }
+        
+        .itinerary-item-remove {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            padding: 4px 8px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .itinerary-item-remove:hover {
+            background: #c0392b;
+        }
+        
+        .itinerary-item-details {
+            font-size: 12px;
+            color: #ccc;
+        }
+        
+        .itinerary-world {
+            color: #2a9d8f;
+            font-weight: 500;
+        }
+        
+        .itinerary-price {
+            color: #f39c12;
+        }
+        
+        .itinerary-empty {
+            color: #999;
+            font-style: italic;
+            text-align: center;
+            padding: 30px 20px;
+        }
+        
+        .itinerary-summary {
+            background: #0f1823;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 13px;
+        }
+        
+        .itinerary-summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        
+        .itinerary-summary-row:last-child {
+            margin-bottom: 0;
+        }
+        
+        .itinerary-summary-label {
+            color: #999;
+        }
+        
+        .itinerary-summary-value {
+            color: #2a9d8f;
+            font-weight: 500;
+        }
+        
+        .no-data {
+            color: #999;
+            padding: 30px;
+            font-style: italic;
+            text-align: center;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: #1a2332;
+            border: 2px solid #2a9d8f;
+            border-radius: 8px;
+            padding: 30px;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            width: 90%;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #2a3f52;
+        }
+        
+        .modal-close {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .modal-close:hover {
+            background: #c0392b;
+        }
+
+    </style>
+</head>
+<body>
+    <header>
+        <h1>FFXIV Lamia Materia Price Checker</h1>
+        <p>Compare Lamia prices vs American DCs • Click worlds to build your shopping route</p>
+        
+        <div class="controls">
+            <button id="loadBtn" onclick="loadData()">Load Live Prices</button>
+            <button id="refreshBtn" class="secondary" onclick="clearCacheAndReload()">Clear Cache & Reload</button>
+            <div class="status" id="status">Click "Load Live Prices" to start</div>
+        </div>
+        
+        <div id="progressContainer" style="display: none; margin-top: 15px;">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div style="font-size: 12px; color: #999; margin-top: 5px;">
+                <span id="progressText">Loading...</span>
+            </div>
+        </div>
+    </header>
+    
+    <div class="container">
+        <div class="main-content">
+            <div class="items-container" id="itemsContainer">
+                <div class="no-data">No data loaded yet. Click "Load Live Prices" above.</div>
+            </div>
+        </div>
+        
+        <div class="itinerary-sidebar">
+            <div class="itinerary-header">
+                <h2>Shopping Itinerary</h2>
+                <div class="itinerary-summary" id="itinerarySummary">
+                    <div class="itinerary-summary-row">
+                        <span class="itinerary-summary-label">Items:</span>
+                        <span class="itinerary-summary-value" id="itemCount">0</span>
+                    </div>
+                    <div class="itinerary-summary-row">
+                        <span class="itinerary-summary-label">Worlds:</span>
+                        <span class="itinerary-summary-value" id="worldCount">0</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="itinerary-content" id="itineraryContent">
+                <div class="itinerary-empty">Click on world cards to add items to your shopping list</div>
+            </div>
+            
+            <div class="itinerary-footer">
+                <button onclick="generateRoute()" style="width: 100%; margin-bottom: 10px;">Generate Route</button>
+                <button class="secondary" onclick="exportItinerary()" style="width: 100%; margin-bottom: 10px;">Export Itinerary</button>
+                <button class="secondary" onclick="triggerImport()" style="width: 100%; margin-bottom: 10px;">Import Itinerary</button>
+                <button class="secondary" onclick="clearItinerary()" style="width: 100%;">Clear All</button>
+                <input id="importFile" type="file" accept="application/json" onchange="importItinerary(event)" style="display: none;" />
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal" id="routeModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Your Shopping Route</h2>
+                <button class="modal-close" onclick="closeModal()">Close</button>
+            </div>
+            <div id="routeOutput" style="font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.6; white-space: pre-wrap;"></div>
+            <button onclick="copyToClipboard()" style="margin-top: 15px; width: 100%;">Copy to Clipboard</button>
+        </div>
+    </div>
+    
+    <script>
+        const DEFAULT_ITEMS = [
+            "Quickarm Materia XII",
+            "Quickarm Materia XI",
+            "Quicktongue Materia XII",
+            "Quicktongue Materia XI",
+            "Savage Might Materia VI",
+            "Savage Might Materia XI",
+            "Savage Might Materia XII",
+            "Savage Aim Materia XII",
+            "Savage Aim Materia XI",
+            "Heavens' Eye Materia XI",
+            "Heavens' Eye Materia XII",
+            "Piety Materia XII",
+            "Piety Materia XI",
+            "Battledance Materia XII",
+            "Craftsman's Command Materia XII",
+            "Craftsman's Cunning Materia XII",
+            "Gatherer's Guerdon Materia XII",
+            "Gatherer's Grasp Materia XII",
+            "Gatherer's Guile Materia XII",
+        ];
+        let ITEMS = [];
+        
+        const AMERICAN_DCS = ["Aether", "Primal", "Crystal", "Dynamis"];
+        const CACHE_KEY = "lamia_price_data_v2";
+        const CACHE_EXPIRY_KEY = "lamia_price_expiry_v2";
+        const CACHE_EXPIRY_HOURS = 24;
+        
+        let data = [];
+        let itinerary = {}; // { itemName: { world, price, quantity }, ... }
+
+        function setStatus(kind, message) {
+            const status = document.getElementById("status");
+            status.className = `status ${kind}`;
+            status.textContent = message;
+        }
+
+        function getHoursRemaining(cacheExpiry) {
+            return Math.max(0, Math.round((cacheExpiry - Date.now()) / 3600000));
+        }
+
+        async function loadItemsFromFile() {
+            try {
+                const resp = await fetch("items.txt", { cache: "no-store" });
+                if (!resp.ok) {
+                    throw new Error(`items.txt request failed: ${resp.status}`);
+                }
+                const text = await resp.text();
+                const parsed = text
+                    .split(/\r?\n/)
+                    .map(line => line.trim())
+                    .filter(line => line && !line.startsWith("#"));
+                if (parsed.length > 0) {
+                    ITEMS = parsed;
+                    return;
+                }
+            } catch (e) {
+                console.warn("Falling back to default item list:", e);
+            }
+            ITEMS = DEFAULT_ITEMS.slice();
+        }
+        
+        async function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+        
+        async function xivapi_lookup(name) {
+            const query = encodeURIComponent(name);
+            const url = `https://xivapi.com/search?string=${query}&indexes=item&limit=3`;
+            try {
+                const resp = await fetch(url);
+                const result = await resp.json();
+                const results = result.Results || [];
+                if (results.length === 0) return null;
+                
+                const normalized = name.toLowerCase().replace(/\s+/g, " ");
+                for (const r of results) {
+                    if (r.Name.toLowerCase().replace(/\s+/g, " ") === normalized) {
+                        return r.ID;
+                    }
+                }
+                return results[0].ID;
+            } catch (e) {
+                console.error(`XIVAPI lookup failed for ${name}:`, e);
+                return null;
+            }
+        }
+        
+        async function get_lamia_price(item_id) {
+            const url = `https://universalis.app/api/v2/Lamia/${item_id}`;
+            try {
+                const resp = await fetch(url);
+                const result = await resp.json();
+                const listings = (result.listings || [])
+                    .map(l => ({
+                        price: l.pricePerUnit,
+                        quantity: l.quantity || 0,
+                    }))
+                    .sort((a, b) => a.price - b.price)
+                    .slice(0, 10); // Top 10 Lamia listings
+                
+                return { listings };
+            } catch (e) {
+                console.error(`Lamia price lookup failed for ${item_id}:`, e);
+                return { listings: [] };
+            }
+        }
+        
+        async function get_listings(item_id, dc) {
+            const url = `https://universalis.app/api/v2/${dc}/${item_id}`;
+            try {
+                const resp = await fetch(url);
+                const data = await resp.json();
+                const listings = (data.listings || [])
+                    .filter(l => (l.quantity || 0) >= 10)
+                    .map(l => ({
+                        world: l.worldName || dc,
+                        price: l.pricePerUnit,
+                        quantity: l.quantity || 0,
+                    }))
+                    .sort((a, b) => a.price - b.price || b.quantity - a.quantity);
+                return listings;
+            } catch (e) {
+                console.error(`Listings lookup failed for ${item_id} on ${dc}:`, e);
+                return [];
+            }
+        }
+        
+        async function loadData(forceRefresh = false) {
+            const btn = document.getElementById("loadBtn");
+            btn.disabled = true;
+            
+            const progressContainer = document.getElementById("progressContainer");
+            const progressFill = document.getElementById("progressFill");
+            const progressText = document.getElementById("progressText");
+
+            try {
+                if (!navigator.onLine) {
+                    setStatus("error", "No internet connection. Reconnect and try again.");
+                    return;
+                }
+
+                await loadItemsFromFile();
+                if (ITEMS.length === 0) {
+                    setStatus("error", "No items found. Check items.txt and try again.");
+                    return;
+                }
+
+                setStatus("loading", "Fetching prices from Universalis...");
+                progressContainer.style.display = "block";
+
+                // Use cache unless a forced refresh is requested.
+                if (!forceRefresh) {
+                    const cachedData = localStorage.getItem(CACHE_KEY);
+                    const cacheExpiryRaw = localStorage.getItem(CACHE_EXPIRY_KEY);
+                    const cacheExpiry = parseInt(cacheExpiryRaw || "0", 10);
+                    if (cachedData && cacheExpiry && Date.now() < cacheExpiry) {
+                        data = JSON.parse(cachedData);
+                        renderItems();
+                        setStatus("success", `Loaded ${data.length} items (cached, ${getHoursRemaining(cacheExpiry)}h remaining)`);
+                        progressContainer.style.display = "none";
+                        return;
+                    }
+                }
+
+                data = [];
+                let completed = 0;
+                let hadErrors = false;
+
+                for (const itemName of ITEMS) {
+                    try {
+                        progressText.textContent = `${itemName}...`;
+                        progressFill.style.width = `${(completed / ITEMS.length) * 100}%`;
+
+                        const itemId = await xivapi_lookup(itemName);
+                        if (!itemId) {
+                            console.warn(`No item ID found for ${itemName}`);
+                            hadErrors = true;
+                            completed++;
+                            continue;
+                        }
+
+                        const lamiaData = await get_lamia_price(itemId);
+
+                        let allListings = [];
+                        for (const dc of AMERICAN_DCS) {
+                            const listings = await get_listings(itemId, dc);
+                            allListings = allListings.concat(listings);
+                            await sleep(200);
+                        }
+
+                        const uniqueListings = {};
+                        allListings.forEach(l => {
+                            const key = `${l.world}_${l.price}`;
+                            if (!uniqueListings[key]) uniqueListings[key] = l;
+                        });
+                        const sorted = Object.values(uniqueListings)
+                            .sort((a, b) => a.price - b.price || b.quantity - a.quantity)
+                            .slice(0, 30);
+
+                        data.push({
+                            name: itemName,
+                            lamia: lamiaData,
+                            listings: sorted,
+                        });
+
+                        completed++;
+                        await sleep(100);
+                    } catch (e) {
+                        console.error(`Error fetching ${itemName}:`, e);
+                        hadErrors = true;
+                        completed++;
+                    }
+                }
+
+                localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+                localStorage.setItem(CACHE_EXPIRY_KEY, (Date.now() + CACHE_EXPIRY_HOURS * 3600000).toString());
+
+                renderItems();
+                progressFill.style.width = "100%";
+                progressText.textContent = "Complete!";
+                if (hadErrors) {
+                    setStatus("error", `Loaded ${data.length}/${ITEMS.length} items. Some lookups failed; try Clear Cache & Reload.`);
+                } else {
+                    setStatus("success", `Loaded ${data.length} items. Click world cards to build your route.`);
+                }
+
+                setTimeout(() => {
+                    progressContainer.style.display = "none";
+                }, 1000);
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function clearCacheAndReload() {
+            localStorage.removeItem(CACHE_KEY);
+            localStorage.removeItem(CACHE_EXPIRY_KEY);
+            setStatus("loading", "Cache cleared. Fetching fresh prices...");
+            loadData(true);
+        }
+        
+        function renderItems() {
+            const container = document.getElementById("itemsContainer");
+            container.innerHTML = "";
+            
+            data.forEach((item, idx) => {
+                const itemDiv = document.createElement("div");
+                itemDiv.className = "item";
+                
+                // Item name
+                const nameDiv = document.createElement("div");
+                nameDiv.className = "item-name";
+                nameDiv.textContent = item.name;
+                itemDiv.appendChild(nameDiv);
+                
+                const sectionsDiv = document.createElement("div");
+                sectionsDiv.className = "item-sections";
+                
+                // Lamia section
+                const lamiaSection = document.createElement("div");
+                lamiaSection.className = "lamia-section";
+                lamiaSection.innerHTML = `<div class="section-title">Lamia Market Board (Your Sell World)</div>`;
+                
+                if (item.lamia.listings.length === 0) {
+                    lamiaSection.innerHTML += `<div style="color: #999; font-size: 13px;">No listings available</div>`;
+                } else {
+                    const table = document.createElement("table");
+                    table.className = "lamia-listings-table";
+                    table.innerHTML = `
+                        <thead>
+                            <tr>
+                                <th>Price</th>
+                                <th>Quantity</th>
+                            </tr>
+                        </thead>
+                    `;
+                    const tbody = document.createElement("tbody");
+                    item.lamia.listings.forEach(listing => {
+                        const tr = document.createElement("tr");
+                        tr.innerHTML = `
+                            <td style="color: #f39c12; font-weight: 500;">${listing.price.toLocaleString()}</td>
+                            <td>${listing.quantity}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                    table.appendChild(tbody);
+                    lamiaSection.appendChild(table);
+                }
+                sectionsDiv.appendChild(lamiaSection);
+                
+                // Other worlds section
+                const worldsSection = document.createElement("div");
+                worldsSection.className = "other-worlds-section";
+                worldsSection.innerHTML = `<div class="section-title">Other Worlds (Click Row to Add to Itinerary)</div>`;
+                
+                if (item.listings.length === 0) {
+                    worldsSection.innerHTML += `<div style="color: #999; font-size: 13px;">No listings available</div>`;
+                } else {
+                    const table = document.createElement("table");
+                    table.className = "worlds-table";
+                    
+                    const thead = document.createElement("thead");
+                    thead.innerHTML = `
+                        <tr>
+                            <th>World</th>
+                            <th style="text-align: right;">Price</th>
+                            <th style="text-align: right;">Qty</th>
+                        </tr>
+                    `;
+                    table.appendChild(thead);
+                    
+                    const tbody = document.createElement("tbody");
+                    item.listings.forEach(listing => {
+                        const tr = document.createElement("tr");
+                        
+                        if (itinerary[item.name] && itinerary[item.name].world === listing.world) {
+                            tr.classList.add("selected");
+                        }
+                        
+                        tr.innerHTML = `
+                            <td class="world-name-col">${listing.world}</td>
+                            <td class="price-col">${listing.price.toLocaleString()}</td>
+                            <td class="qty-col">${listing.quantity}</td>
+                        `;
+                        
+                        tr.onclick = () => toggleItineraryItem(item.name, listing);
+                        tbody.appendChild(tr);
+                    });
+                    
+                    table.appendChild(tbody);
+                    worldsSection.appendChild(table);
+                }
+                sectionsDiv.appendChild(worldsSection);
+                
+                itemDiv.appendChild(sectionsDiv);
+                container.appendChild(itemDiv);
+            });
+        }
+        
+        function toggleItineraryItem(itemName, listing) {
+            if (itinerary[itemName] && itinerary[itemName].world === listing.world) {
+                delete itinerary[itemName];
+            } else {
+                itinerary[itemName] = {
+                    world: listing.world,
+                    price: listing.price,
+                    quantity: listing.quantity,
+                };
+            }
+            renderItems();
+            renderItinerary();
+        }
+        
+        function renderItinerary() {
+            const content = document.getElementById("itineraryContent");
+            const itemCount = document.getElementById("itemCount");
+            const worldCount = document.getElementById("worldCount");
+            
+            const items = Object.keys(itinerary);
+            itemCount.textContent = items.length;
+            
+            const worlds = new Set(items.map(name => itinerary[name].world));
+            worldCount.textContent = worlds.size;
+            
+            if (items.length === 0) {
+                content.innerHTML = `<div class="itinerary-empty">Click on world cards to add items to your shopping list</div>`;
+                return;
+            }
+            
+            content.innerHTML = "";
+            items.sort().forEach(itemName => {
+                const entry = itinerary[itemName];
+                const itemDiv = document.createElement("div");
+                itemDiv.className = "itinerary-item";
+                
+                itemDiv.innerHTML = `
+                    <div class="itinerary-item-header">
+                        <div class="itinerary-item-name">${itemName}</div>
+                        <button class="itinerary-item-remove" onclick="removeItineraryItem('${itemName}')">Remove</button>
+                    </div>
+                    <div class="itinerary-item-details">
+                        <span class="itinerary-world">${entry.world}</span> @ 
+                        <span class="itinerary-price">${entry.price.toLocaleString()} gil</span>
+                        (qty: ${entry.quantity})
+                    </div>
+                `;
+                
+                content.appendChild(itemDiv);
+            });
+        }
+        
+        function removeItineraryItem(itemName) {
+            delete itinerary[itemName];
+            renderItems();
+            renderItinerary();
+        }
+        
+        function clearItinerary() {
+            if (!confirm("Clear entire itinerary?")) return;
+            itinerary = {};
+            renderItems();
+            renderItinerary();
+        }
+
+        function exportItinerary() {
+            const payload = {
+                exportedAt: new Date().toISOString(),
+                itinerary,
+            };
+            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `ffxiv-itinerary-${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            setStatus("success", "Itinerary exported.");
+        }
+
+        function triggerImport() {
+            const input = document.getElementById("importFile");
+            input.value = "";
+            input.click();
+        }
+
+        function importItinerary(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = () => {
+                try {
+                    const parsed = JSON.parse(String(reader.result || ""));
+                    const imported = parsed && parsed.itinerary ? parsed.itinerary : parsed;
+
+                    if (!imported || typeof imported !== "object" || Array.isArray(imported)) {
+                        throw new Error("Invalid itinerary format");
+                    }
+
+                    itinerary = imported;
+                    renderItems();
+                    renderItinerary();
+                    setStatus("success", `Imported itinerary with ${Object.keys(itinerary).length} items.`);
+                } catch (e) {
+                    console.error("Import failed:", e);
+                    setStatus("error", "Import failed. Please use a valid itinerary JSON file.");
+                }
+            };
+            reader.readAsText(file);
+        }
+        
+        function generateRoute() {
+            if (Object.keys(itinerary).length === 0) {
+                alert("Your itinerary is empty. Click on world cards to add items.");
+                return;
+            }
+            
+            const byWorld = {};
+            Object.entries(itinerary).forEach(([itemName, entry]) => {
+                if (!byWorld[entry.world]) byWorld[entry.world] = [];
+                byWorld[entry.world].push({ name: itemName, ...entry });
+            });
+            
+            let routeText = "";
+            const sortedWorlds = Object.keys(byWorld).sort();
+            routeText += `SHOPPING ROUTE (${sortedWorlds.length} worlds)\n`;
+            routeText += "=".repeat(60) + "\n\n";
+            
+            sortedWorlds.forEach(world => {
+                routeText += `${world}:\n`;
+                byWorld[world].forEach(item => {
+                    routeText += `  - ${item.name} @ ${item.price.toLocaleString()} gil (qty: ${item.quantity})\n`;
+                });
+                routeText += "\n";
+            });
+            
+            routeText += "\nSUMMARY\n";
+            routeText += "=".repeat(60) + "\n";
+            routeText += `Total items: ${Object.keys(itinerary).length}\n`;
+            routeText += `Total worlds to visit: ${sortedWorlds.length}\n`;
+            routeText += `Worlds: ${sortedWorlds.join(", ")}\n`;
+            
+            document.getElementById("routeOutput").textContent = routeText;
+            document.getElementById("routeModal").classList.add("active");
+        }
+        
+        function closeModal() {
+            document.getElementById("routeModal").classList.remove("active");
+        }
+        
+        function copyToClipboard() {
+            const route = document.getElementById("routeOutput").textContent;
+            navigator.clipboard.writeText(route).then(() => {
+                alert("Route copied to clipboard!");
+            });
+        }
+    </script>
+</body>
+</html>
