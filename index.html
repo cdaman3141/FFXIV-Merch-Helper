@@ -538,9 +538,11 @@
         const CACHE_KEY = "lamia_price_data_v2";
         const CACHE_EXPIRY_KEY = "lamia_price_expiry_v2";
         const CACHE_EXPIRY_HOURS = 24;
+        const FALLBACK_ITEMS_URL = "https://raw.githubusercontent.com/ffxiv-teamcraft/ffxiv-teamcraft/master/libs/data/src/lib/json/items.json";
         
         let data = [];
         let itinerary = {}; // { itemName: { world, price, quantity }, ... }
+        let fallbackItemIndexPromise = null;
 
         function setStatus(kind, message) {
             const status = document.getElementById("status");
@@ -576,6 +578,49 @@
         async function sleep(ms) {
             return new Promise(resolve => setTimeout(resolve, ms));
         }
+
+        function normalizeItemName(value) {
+            return String(value || "")
+                .toLowerCase()
+                .replace(/\s+/g, " ")
+                .trim();
+        }
+
+        async function getFallbackItemIndex() {
+            if (fallbackItemIndexPromise) return fallbackItemIndexPromise;
+
+            fallbackItemIndexPromise = (async () => {
+                const resp = await fetch(FALLBACK_ITEMS_URL, { cache: "no-store" });
+                if (!resp.ok) {
+                    throw new Error(`Fallback item source failed: ${resp.status}`);
+                }
+
+                const raw = await resp.json();
+                const index = new Map();
+
+                Object.entries(raw).forEach(([id, item]) => {
+                    if (!item || !item.en) return;
+                    const normalized = normalizeItemName(item.en);
+                    if (normalized && !index.has(normalized)) {
+                        index.set(normalized, Number(id));
+                    }
+                });
+
+                return index;
+            })();
+
+            return fallbackItemIndexPromise;
+        }
+
+        async function fallback_item_lookup(name) {
+            try {
+                const index = await getFallbackItemIndex();
+                return index.get(normalizeItemName(name)) || null;
+            } catch (e) {
+                console.error(`Fallback lookup failed for ${name}:`, e);
+                return null;
+            }
+        }
         
         async function xivapi_lookup(name) {
             const query = encodeURIComponent(name);
@@ -584,18 +629,20 @@
                 const resp = await fetch(url);
                 const result = await resp.json();
                 const results = result.Results || [];
-                if (results.length === 0) return null;
+                if (results.length === 0) {
+                    return await fallback_item_lookup(name);
+                }
                 
-                const normalized = name.toLowerCase().replace(/\s+/g, " ");
+                const normalized = normalizeItemName(name);
                 for (const r of results) {
-                    if (r.Name.toLowerCase().replace(/\s+/g, " ") === normalized) {
+                    if (normalizeItemName(r.Name) === normalized) {
                         return r.ID;
                     }
                 }
                 return results[0].ID;
             } catch (e) {
                 console.error(`XIVAPI lookup failed for ${name}:`, e);
-                return null;
+                return await fallback_item_lookup(name);
             }
         }
         
