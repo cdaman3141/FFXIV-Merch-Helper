@@ -297,6 +297,43 @@
             color: #ccc;
             text-align: right;
         }
+
+        .history-btn {
+            padding: 4px 8px;
+            font-size: 11px;
+            border-radius: 3px;
+        }
+
+        .history-summary {
+            background: #0f1823;
+            border: 1px solid #2a3f52;
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 12px;
+            font-size: 12px;
+            color: #ccc;
+            line-height: 1.5;
+        }
+
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        .history-table th,
+        .history-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #2a3f52;
+            text-align: left;
+        }
+
+        .history-table th {
+            color: #999;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
         
         .itinerary-item {
             background: #1a2332;
@@ -509,6 +546,16 @@
             <button onclick="copyToClipboard()" style="margin-top: 15px; width: 100%;">Copy to Clipboard</button>
         </div>
     </div>
+
+    <div class="modal" id="historyModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="historyTitle">Sale History</h2>
+                <button class="modal-close" onclick="closeHistoryModal()">Close</button>
+            </div>
+            <div id="historyOutput" style="font-size: 13px; color: #ccc;">Click a history button from a listing row.</div>
+        </div>
+    </div>
     
     <script>
         const DEFAULT_ITEMS = [
@@ -538,16 +585,167 @@
         const CACHE_KEY = "lamia_price_data_v2";
         const CACHE_EXPIRY_KEY = "lamia_price_expiry_v2";
         const CACHE_EXPIRY_HOURS = 24;
+        const MIN_DIRECT_STACK_QTY = 10;
+        const MIN_COMBINED_STACK_QTY = 10;
+        const HISTORY_CACHE_KEY = "lamia_history_cache_v1";
+        const HISTORY_CACHE_HOURS = 2;
+        const HISTORY_ENTRIES = 25;
+        const HISTORY_WINDOW_SECONDS = 7 * 24 * 3600;
         const FALLBACK_ITEMS_URL = "https://raw.githubusercontent.com/ffxiv-teamcraft/ffxiv-teamcraft/master/libs/data/src/lib/json/items.json";
         
         let data = [];
-        let itinerary = {}; // { itemName: { world, price, quantity }, ... }
+        let itinerary = {}; // { itemName: { world, price, quantity, listingType, sourceCount }, ... }
         let fallbackItemIndexPromise = null;
+        let historyCache = {};
+
+        function getListingSelectionKey(listing) {
+            return `${listing.world}::${listing.listingType || "direct"}::${listing.price}::${listing.quantity}`;
+        }
 
         function setStatus(kind, message) {
             const status = document.getElementById("status");
             status.className = `status ${kind}`;
             status.textContent = message;
+        }
+
+        function loadHistoryCache() {
+            try {
+                const raw = localStorage.getItem(HISTORY_CACHE_KEY);
+                historyCache = raw ? JSON.parse(raw) : {};
+            } catch (e) {
+                console.warn("History cache parse failed:", e);
+                historyCache = {};
+            }
+        }
+
+        function saveHistoryCache() {
+            try {
+                localStorage.setItem(HISTORY_CACHE_KEY, JSON.stringify(historyCache));
+            } catch (e) {
+                console.warn("History cache save failed:", e);
+            }
+        }
+
+        function getHistoryKey(itemId, world) {
+            return `${itemId}::${world}`;
+        }
+
+        function formatTimestamp(unixSeconds) {
+            const d = new Date((unixSeconds || 0) * 1000);
+            return d.toLocaleString();
+        }
+
+        function formatHistorySummary(itemName, world, historyData) {
+            const entries = historyData.entries || [];
+            const weightedTotal = entries.reduce((acc, e) => acc + ((e.pricePerUnit || 0) * (e.quantity || 0)), 0);
+            const qtyTotal = entries.reduce((acc, e) => acc + (e.quantity || 0), 0);
+            const effective = qtyTotal > 0 ? Math.round(weightedTotal / qtyTotal) : 0;
+            const velocity = (historyData.regularSaleVelocity || 0).toFixed(2);
+            const lastUpload = historyData.lastUploadTime ? new Date(historyData.lastUploadTime).toLocaleString() : "n/a";
+
+            return `
+                <div class="history-summary">
+                    <div><strong>${itemName}</strong> on <strong>${world}</strong></div>
+                    <div>Recent sales loaded: ${entries.length}</div>
+                    <div>Weighted avg sold price: ${effective.toLocaleString()} gil</div>
+                    <div>Regular sale velocity: ${velocity}/day</div>
+                    <div>Last upload: ${lastUpload}</div>
+                </div>
+            `;
+        }
+
+        function renderHistory(itemName, world, historyData) {
+            const output = document.getElementById("historyOutput");
+            const entries = historyData.entries || [];
+            const summary = formatHistorySummary(itemName, world, historyData);
+
+            if (entries.length === 0) {
+                output.innerHTML = `${summary}<div style="color:#999;">No recent sale history entries found.</div>`;
+                return;
+            }
+
+            const rows = entries.map(e => {
+                const qty = e.quantity || 0;
+                const ppu = e.pricePerUnit || 0;
+                const total = qty * ppu;
+                return `
+                    <tr>
+                        <td>${formatTimestamp(e.timestamp)}</td>
+                        <td style="text-align:right;">${ppu.toLocaleString()}</td>
+                        <td style="text-align:right;">${qty.toLocaleString()}</td>
+                        <td style="text-align:right;">${total.toLocaleString()}</td>
+                    </tr>
+                `;
+            }).join("");
+
+            output.innerHTML = `
+                ${summary}
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th style="text-align:right;">Unit Price</th>
+                            <th style="text-align:right;">Qty</th>
+                            <th style="text-align:right;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            `;
+        }
+
+        async function fetchHistory(itemId, world) {
+            const key = getHistoryKey(itemId, world);
+            const cached = historyCache[key];
+            const expiresAt = cached ? (cached.fetchedAt + HISTORY_CACHE_HOURS * 3600000) : 0;
+
+            if (cached && Date.now() < expiresAt) {
+                return cached.data;
+            }
+
+            const url = `https://universalis.app/api/v2/history/${encodeURIComponent(world)}/${itemId}?entriesToReturn=${HISTORY_ENTRIES}&entriesWithin=${HISTORY_WINDOW_SECONDS}`;
+            const resp = await fetch(url);
+            if (!resp.ok) {
+                throw new Error(`History request failed: ${resp.status}`);
+            }
+
+            const payload = await resp.json();
+            const parsed = {
+                entries: payload.entries || [],
+                regularSaleVelocity: payload.regularSaleVelocity || 0,
+                lastUploadTime: payload.lastUploadTime || 0,
+            };
+
+            historyCache[key] = {
+                fetchedAt: Date.now(),
+                data: parsed,
+            };
+            saveHistoryCache();
+            return parsed;
+        }
+
+        async function openHistoryModal(itemName, itemId, world) {
+            if (!itemId) {
+                setStatus("error", "History unavailable for cached data. Click Clear Cache & Reload once.");
+                return;
+            }
+            const title = document.getElementById("historyTitle");
+            const output = document.getElementById("historyOutput");
+            title.textContent = `Sale History: ${itemName} (${world})`;
+            output.textContent = "Loading history...";
+            document.getElementById("historyModal").classList.add("active");
+
+            try {
+                const historyData = await fetchHistory(itemId, world);
+                renderHistory(itemName, world, historyData);
+            } catch (e) {
+                console.error("History fetch failed:", e);
+                output.innerHTML = `<div style="color:#e74c3c;">Failed to load sale history for ${world}. Try again shortly.</div>`;
+            }
+        }
+
+        function closeHistoryModal() {
+            document.getElementById("historyModal").classList.remove("active");
         }
 
         function getHoursRemaining(cacheExpiry) {
@@ -671,15 +869,52 @@
             try {
                 const resp = await fetch(url);
                 const data = await resp.json();
-                const listings = (data.listings || [])
-                    .filter(l => (l.quantity || 0) >= 10)
+                const rawListings = (data.listings || []).map(l => ({
+                    world: l.worldName || dc,
+                    price: l.pricePerUnit,
+                    quantity: l.quantity || 0,
+                }));
+
+                const directListings = rawListings
+                    .filter(l => l.quantity >= MIN_DIRECT_STACK_QTY)
                     .map(l => ({
-                        world: l.worldName || dc,
-                        price: l.pricePerUnit,
-                        quantity: l.quantity || 0,
-                    }))
+                        world: l.world,
+                        price: l.price,
+                        quantity: l.quantity,
+                        listingType: "direct",
+                        sourceCount: 1,
+                    }));
+
+                const smallByWorld = {};
+                rawListings
+                    .filter(l => l.quantity > 0 && l.quantity < MIN_DIRECT_STACK_QTY)
+                    .forEach(l => {
+                        if (!smallByWorld[l.world]) {
+                            smallByWorld[l.world] = {
+                                world: l.world,
+                                totalQty: 0,
+                                totalCost: 0,
+                                sourceCount: 0,
+                            };
+                        }
+                        smallByWorld[l.world].totalQty += l.quantity;
+                        smallByWorld[l.world].totalCost += l.quantity * l.price;
+                        smallByWorld[l.world].sourceCount += 1;
+                    });
+
+                const combinedListings = Object.values(smallByWorld)
+                    .filter(w => w.totalQty >= MIN_COMBINED_STACK_QTY)
+                    .map(w => ({
+                        world: w.world,
+                        price: Math.round(w.totalCost / w.totalQty),
+                        quantity: w.totalQty,
+                        listingType: "combined",
+                        sourceCount: w.sourceCount,
+                    }));
+
+                return directListings
+                    .concat(combinedListings)
                     .sort((a, b) => a.price - b.price || b.quantity - a.quantity);
-                return listings;
             } catch (e) {
                 console.error(`Listings lookup failed for ${item_id} on ${dc}:`, e);
                 return [];
@@ -716,6 +951,7 @@
                     const cacheExpiry = parseInt(cacheExpiryRaw || "0", 10);
                     if (cachedData && cacheExpiry && Date.now() < cacheExpiry) {
                         data = JSON.parse(cachedData);
+                        loadHistoryCache();
                         renderItems();
                         setStatus("success", `Loaded ${data.length} items (cached, ${getHoursRemaining(cacheExpiry)}h remaining)`);
                         progressContainer.style.display = "none";
@@ -751,7 +987,7 @@
 
                         const uniqueListings = {};
                         allListings.forEach(l => {
-                            const key = `${l.world}_${l.price}`;
+                            const key = `${l.world}_${l.listingType || "direct"}_${l.price}_${l.quantity}`;
                             if (!uniqueListings[key]) uniqueListings[key] = l;
                         });
                         const sorted = Object.values(uniqueListings)
@@ -759,6 +995,7 @@
                             .slice(0, 30);
 
                         data.push({
+                            itemId,
                             name: itemName,
                             lamia: lamiaData,
                             listings: sorted,
@@ -775,6 +1012,7 @@
 
                 localStorage.setItem(CACHE_KEY, JSON.stringify(data));
                 localStorage.setItem(CACHE_EXPIRY_KEY, (Date.now() + CACHE_EXPIRY_HOURS * 3600000).toString());
+                loadHistoryCache();
 
                 renderItems();
                 progressFill.style.width = "100%";
@@ -864,8 +1102,10 @@
                     thead.innerHTML = `
                         <tr>
                             <th>World</th>
+                            <th>Type</th>
                             <th style="text-align: right;">Price</th>
                             <th style="text-align: right;">Qty</th>
+                            <th>History</th>
                         </tr>
                     `;
                     table.appendChild(thead);
@@ -873,16 +1113,34 @@
                     const tbody = document.createElement("tbody");
                     item.listings.forEach(listing => {
                         const tr = document.createElement("tr");
+                        const isCombined = listing.listingType === "combined";
+                        const listingKey = getListingSelectionKey(listing);
                         
-                        if (itinerary[item.name] && itinerary[item.name].world === listing.world) {
+                        if (itinerary[item.name] && itinerary[item.name].selectionKey === listingKey) {
                             tr.classList.add("selected");
                         }
                         
                         tr.innerHTML = `
                             <td class="world-name-col">${listing.world}</td>
+                            <td class="qty-col">${isCombined ? `Combined (${listing.sourceCount})` : "Direct"}</td>
                             <td class="price-col">${listing.price.toLocaleString()}</td>
                             <td class="qty-col">${listing.quantity}</td>
+                            <td></td>
                         `;
+
+                        const historyCell = tr.lastElementChild;
+                        const historyBtn = document.createElement("button");
+                        historyBtn.className = "history-btn secondary";
+                        historyBtn.textContent = "History";
+                        if (!item.itemId) {
+                            historyBtn.disabled = true;
+                            historyBtn.title = "Reload data once to enable history for cached items.";
+                        }
+                        historyBtn.onclick = (event) => {
+                            event.stopPropagation();
+                            openHistoryModal(item.name, item.itemId, listing.world);
+                        };
+                        historyCell.appendChild(historyBtn);
                         
                         tr.onclick = () => toggleItineraryItem(item.name, listing);
                         tbody.appendChild(tr);
@@ -899,13 +1157,17 @@
         }
         
         function toggleItineraryItem(itemName, listing) {
-            if (itinerary[itemName] && itinerary[itemName].world === listing.world) {
+            const listingKey = getListingSelectionKey(listing);
+            if (itinerary[itemName] && itinerary[itemName].selectionKey === listingKey) {
                 delete itinerary[itemName];
             } else {
                 itinerary[itemName] = {
                     world: listing.world,
                     price: listing.price,
                     quantity: listing.quantity,
+                    listingType: listing.listingType || "direct",
+                    sourceCount: listing.sourceCount || 1,
+                    selectionKey: listingKey,
                 };
             }
             renderItems();
@@ -942,7 +1204,7 @@
                     <div class="itinerary-item-details">
                         <span class="itinerary-world">${entry.world}</span> @ 
                         <span class="itinerary-price">${entry.price.toLocaleString()} gil</span>
-                        (qty: ${entry.quantity})
+                        (qty: ${entry.quantity}, ${entry.listingType === "combined" ? `combined from ${entry.sourceCount} stacks` : "direct stack"})
                     </div>
                 `;
                 
@@ -1032,7 +1294,10 @@
             sortedWorlds.forEach(world => {
                 routeText += `${world}:\n`;
                 byWorld[world].forEach(item => {
-                    routeText += `  - ${item.name} @ ${item.price.toLocaleString()} gil (qty: ${item.quantity})\n`;
+                    const sourceLabel = item.listingType === "combined"
+                        ? `combined from ${item.sourceCount || 1} small stacks`
+                        : "direct stack";
+                    routeText += `  - ${item.name} @ ${item.price.toLocaleString()} gil (qty: ${item.quantity}, ${sourceLabel})\n`;
                 });
                 routeText += "\n";
             });

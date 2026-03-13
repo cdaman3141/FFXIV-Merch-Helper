@@ -26,6 +26,8 @@ Current project state fits GitHub Pages.
 - Live price fetching from Universalis + item lookup from XIVAPI
 - Item list loaded from `items.txt` (single source of truth)
 - World-selection UI for building a shopping itinerary
+- Buy-side stack model: direct large stacks plus combined small-stack options (effective price)
+- Per-world sale history modal (recent sold listings, weighted average, sale velocity)
 - Route text generation + clipboard copy
 - 24-hour local cache with manual **Clear Cache & Reload** control
 - Responsive layout for desktop and mobile
@@ -71,6 +73,7 @@ Outputs:
 
 - Route order is grouped/sorted by world name, not travel-optimized.
 - HQ/NQ detail is not shown in the current web table.
+- Combined small-stack rows are weighted-average estimates, not single seller listings.
 - If some API calls fail, partial data may still render.
 
 ## Roadmap
@@ -101,6 +104,8 @@ Outputs:
 3. Click **Clear Cache & Reload** and verify fresh fetch behavior.
 4. Disable network and verify clear offline/error status.
 5. Build itinerary, generate route, and copy route text successfully.
+6. Confirm at least one item shows both `Direct` and `Combined (n)` row types when small stacks exist.
+7. Click `History` for a world row and confirm recent sold entries render.
 
 ## Tonight Launch Checklist
 
