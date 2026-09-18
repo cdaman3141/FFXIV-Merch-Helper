@@ -596,6 +596,44 @@
         let data = [];
         let itinerary = {}; // { itemName: { world, price, quantity, listingType, sourceCount }, ... }
         let fallbackItemIndexPromise = null;
+
+        function dedupeItemNames(names) {
+            const seen = new Set();
+            const deduped = [];
+            let removed = 0;
+
+            names.forEach(name => {
+                const normalized = normalizeItemName(name);
+                if (!normalized) return;
+                if (seen.has(normalized)) {
+                    removed += 1;
+                    return;
+                }
+                seen.add(normalized);
+                deduped.push(name);
+            });
+
+            return { items: deduped, removed };
+        }
+
+        function dedupeItemData(records) {
+            const seen = new Set();
+            const deduped = [];
+            let removed = 0;
+
+            records.forEach(record => {
+                const normalized = normalizeItemName(record && record.name);
+                if (!normalized) return;
+                if (seen.has(normalized)) {
+                    removed += 1;
+                    return;
+                }
+                seen.add(normalized);
+                deduped.push(record);
+            });
+
+            return { items: deduped, removed };
+        }
         let historyCache = {};
 
         function getListingSelectionKey(listing) {
@@ -764,13 +802,13 @@
                     .map(line => line.trim())
                     .filter(line => line && !line.startsWith("#"));
                 if (parsed.length > 0) {
-                    ITEMS = parsed;
+                    ITEMS = dedupeItemNames(parsed).items;
                     return;
                 }
             } catch (e) {
                 console.warn("Falling back to default item list:", e);
             }
-            ITEMS = DEFAULT_ITEMS.slice();
+            ITEMS = dedupeItemNames(DEFAULT_ITEMS.slice()).items;
         }
         
         async function sleep(ms) {
@@ -950,10 +988,13 @@
                     const cacheExpiryRaw = localStorage.getItem(CACHE_EXPIRY_KEY);
                     const cacheExpiry = parseInt(cacheExpiryRaw || "0", 10);
                     if (cachedData && cacheExpiry && Date.now() < cacheExpiry) {
-                        data = JSON.parse(cachedData);
+                        const parsedCache = JSON.parse(cachedData);
+                        const normalizedCache = dedupeItemData(parsedCache);
+                        data = normalizedCache.items;
                         loadHistoryCache();
                         renderItems();
-                        setStatus("success", `Loaded ${data.length} items (cached, ${getHoursRemaining(cacheExpiry)}h remaining)`);
+                        const duplicateNote = normalizedCache.removed > 0 ? `, deduped ${normalizedCache.removed}` : "";
+                        setStatus("success", `Loaded ${data.length} items (cached${duplicateNote}, ${getHoursRemaining(cacheExpiry)}h remaining)`);
                         progressContainer.style.display = "none";
                         return;
                     }
@@ -1010,6 +1051,9 @@
                     }
                 }
 
+                const normalizedData = dedupeItemData(data);
+                data = normalizedData.items;
+
                 localStorage.setItem(CACHE_KEY, JSON.stringify(data));
                 localStorage.setItem(CACHE_EXPIRY_KEY, (Date.now() + CACHE_EXPIRY_HOURS * 3600000).toString());
                 loadHistoryCache();
@@ -1020,7 +1064,8 @@
                 if (hadErrors) {
                     setStatus("error", `Loaded ${data.length}/${ITEMS.length} items. Some lookups failed; try Clear Cache & Reload.`);
                 } else {
-                    setStatus("success", `Loaded ${data.length} items. Click world cards to build your route.`);
+                    const duplicateNote = normalizedData.removed > 0 ? ` Deduped ${normalizedData.removed} duplicate item rows.` : "";
+                    setStatus("success", `Loaded ${data.length} items. Click world cards to build your route.${duplicateNote}`);
                 }
 
                 setTimeout(() => {
