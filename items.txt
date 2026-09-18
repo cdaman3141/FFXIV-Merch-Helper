@@ -17,3 +17,9 @@ Craftsman's Cunning Materia XII
 Gatherer's Guerdon Materia XII
 Gatherer's Grasp Materia XII
 Gatherer's Guile Materia XII
+Ice Crystal
+Fire Crystal
+Water Crystal
+Earth Crystal
+Wind Crystal
+Lightning Crystal
