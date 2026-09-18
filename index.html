@@ -1203,8 +1203,17 @@
         
         function toggleItineraryItem(itemName, listing) {
             const listingKey = getListingSelectionKey(listing);
+            // #region agent log
+            const _prev = itinerary[itemName] ? { world: itinerary[itemName].world, selectionKey: itinerary[itemName].selectionKey, price: itinerary[itemName].price } : null;
+            const _sameKey = !!(itinerary[itemName] && itinerary[itemName].selectionKey === listingKey);
+            const _willOverwrite = !!(itinerary[itemName] && !_sameKey);
+            fetch('http://127.0.0.1:7836/ingest/ee60357d-26c5-4501-8c3c-1c80c29ea401',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f43220'},body:JSON.stringify({sessionId:'f43220',runId:'pre-fix',hypothesisId:'A',location:'index.html:toggleItineraryItem:entry',message:'toggle called',data:{itemName,listingKey,clickedWorld:listing.world,clickedPrice:listing.price,prevEntry:_prev,sameKeyToggleOff:_sameKey,willOverwriteSameItem:_willOverwrite,itineraryKeysBefore:Object.keys(itinerary),itinerarySizeBefore:Object.keys(itinerary).length},timestamp:Date.now()})}).catch(()=>{});
+            // #endregion
             if (itinerary[itemName] && itinerary[itemName].selectionKey === listingKey) {
                 delete itinerary[itemName];
+                // #region agent log
+                fetch('http://127.0.0.1:7836/ingest/ee60357d-26c5-4501-8c3c-1c80c29ea401',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f43220'},body:JSON.stringify({sessionId:'f43220',runId:'pre-fix',hypothesisId:'B',location:'index.html:toggleItineraryItem:remove',message:'removed matching listing',data:{itemName,listingKey,itineraryKeysAfter:Object.keys(itinerary)},timestamp:Date.now()})}).catch(()=>{});
+                // #endregion
             } else {
                 itinerary[itemName] = {
                     world: listing.world,
@@ -1214,7 +1223,13 @@
                     sourceCount: listing.sourceCount || 1,
                     selectionKey: listingKey,
                 };
+                // #region agent log
+                fetch('http://127.0.0.1:7836/ingest/ee60357d-26c5-4501-8c3c-1c80c29ea401',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f43220'},body:JSON.stringify({sessionId:'f43220',runId:'pre-fix',hypothesisId:'A',location:'index.html:toggleItineraryItem:set',message:'set itinerary entry by itemName',data:{itemName,listingKey,newWorld:listing.world,overwrotePrevious:_willOverwrite,prevWorld:_prev&&_prev.world,itineraryKeysAfter:Object.keys(itinerary),entryCountForItemName:1,structureIsItemKeyed:true},timestamp:Date.now()})}).catch(()=>{});
+                // #endregion
             }
+            // #region agent log
+            fetch('http://127.0.0.1:7836/ingest/ee60357d-26c5-4501-8c3c-1c80c29ea401',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f43220'},body:JSON.stringify({sessionId:'f43220',runId:'pre-fix',hypothesisId:'C',location:'index.html:toggleItineraryItem:exit',message:'itinerary state after toggle',data:{itemName,currentEntry:itinerary[itemName]||null,allEntries:Object.fromEntries(Object.entries(itinerary).map(([k,v])=>[k,{world:v.world,selectionKey:v.selectionKey}])),size:Object.keys(itinerary).length},timestamp:Date.now()})}).catch(()=>{});
+            // #endregion
             renderItems();
             renderItinerary();
         }
@@ -1225,6 +1240,9 @@
             const worldCount = document.getElementById("worldCount");
             
             const items = Object.keys(itinerary);
+            // #region agent log
+            fetch('http://127.0.0.1:7836/ingest/ee60357d-26c5-4501-8c3c-1c80c29ea401',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f43220'},body:JSON.stringify({sessionId:'f43220',runId:'pre-fix',hypothesisId:'D',location:'index.html:renderItinerary',message:'render itinerary keyed by item name only',data:{itemKeys:items,entryWorlds:items.map(n=>({name:n,world:itinerary[n].world,key:itinerary[n].selectionKey})),uniqueItemNames:items.length,note:'one slot per itemName'},timestamp:Date.now()})}).catch(()=>{});
+            // #endregion
             itemCount.textContent = items.length;
             
             const worlds = new Set(items.map(name => itinerary[name].world));
